@@ -6,117 +6,83 @@ namespace Alpipego\AWP\Router;
 
 class Router implements RouterInterface
 {
-	private $routeVariables = [];
-	private $rewriteTags = [];
+	private $methods = [];
+	private $routes = [];
 
-	private function addRoute(string $route, callable $callable)
+	public function __construct()
 	{
-		$route    = sprintf('^%s/?$', trim($this->parseRoute($route), '/'));
-		$route    = (string)add_filter('awp/router/route', $route);
-		$redirect = $this->parseRedirect();
-		$route    = (string)add_filter('awp/router/redirect', $route);
+		$this->resolveRoute();
+	}
 
-		add_action('init', function () use ($route, $redirect) {
-			add_rewrite_rule($route, $redirect, 'top');
-			$this->addQueryArgs();
-			$this->addRewriteTags();
-			flush_rewrite_rules();
-		});
-
-		add_filter('pre_get_posts', function (\WP_Query $query) use ($callable) {
-			if ( ! $query->is_main_query()) {
-				return;
-			}
-			add_filter('template_include', function (string $template) use ($callable, $query) : string {
-				echo '<code><pre>';
-				var_dump($query, $template);
-				echo '</pre></code>';
-
-				return $template;
-			});
-		});
+	private function addRoute(array $methods, string $route, callable $callable)
+	{
+		$this->routes[md5(implode('', $methods) . $route)] = (new Route($methods, $route, $callable))->add();
 	}
 
 	public function get(string $route, callable $callable)
 	{
-		$this->addRoute($route, $callable);
+		$this->addRoute(['get'], $route, $callable);
 	}
 
 	public function post(string $route, callable $callable)
 	{
-		// TODO: Implement post() method.
+		$this->addRoute(['post'], $route, $callable);
 	}
 
 	public function any(string $route, callable $callable)
 	{
-		// TODO: Implement any() method.
+		$this->addRoute(self::METHODS, $route, $callable);
 	}
-
-	private function parseRoute(string $route) : string
-	{
-		$count = 1;
-
-		return preg_replace_callback(
-			'/{(?<var>[a-zA-Z0-9_%]+)?:?(?<regex>.*?}?)}/',
-			function (array $matches) use (&$count) : string {
-				if (empty($matches['var']) && empty($matches['regex'])) {
-					return $matches[0];
-				}
-
-				$regex = sprintf('(%s)', $matches['regex']);
-				if (empty($matches['regex'])) {
-					$regex = '([^/]+)';
-				} elseif ($matches['regex'] === '?') {
-					$regex = '([^/]+)?';
-				}
-
-				if ($matches['var']) {
-					if (in_array($matches['var'], self::RESERVED) || in_array('%' . $matches['var'] . '%', self::RESERVED)) {
-						throw new RouterException(sprintf('Can\'t define "%s" as query var, since this is a reserved term in WordPress. See https://codex.wordpress.org/Reserved_Terms', $matches['var']));
-					}
-
-					if (strpos($matches['var'], '%') === 0 && strrpos($matches['var'], '%') === strlen($matches['var'])) {
-						$this->rewriteTags[$matches['var']] = $regex;
-					}
-
-					$this->routeVariables[$count++] = trim($matches['var'], '%');
-				}
-
-				return $regex;
-			},
-			$route
-		);
-	}
-
 
 	public function match(array $methods, string $route, callable $callable)
 	{
-		// TODO: Implement match() method.
+		$this->addRoute(array_intersect(self::METHODS, $methods), $route, $callable);
 	}
 
 	public function redirect(string $route, string $target, int $status = 308)
 	{
-		// TODO: Implement redirect() method.
+		$this->methods = self::METHODS;
+		$route         = $this->parseRoute($route);
+		// TODO finish and test redirect
 	}
 
-	private function addQueryArgs()
+	private function resolveRoute()
 	{
-		add_filter('query_vars', function (array $vars) : array {
-			return array_merge($vars, $this->routeVariables);
+		add_filter('pre_get_posts', function (\WP_Query $query) {
+			if ( ! $query->is_main_query() || is_admin() && ! (defined('DOING_AJAX') && DOING_AJAX)) {
+				return;
+			}
+			$routeKey = array_search(array_keys($query->query), array_combine(array_keys($this->routes), array_column($this->routes, 'vars')));
+			if (empty($routeKey)) {
+				return;
+			}
+			add_filter('template_include', function () use ($query, $routeKey) {
+				$route    = $this->routes[$routeKey];
+				$template = $route['callable']($query);
+				if ( ! is_null($template)) {
+					require_once $template;
+
+					return false;
+				}
+
+				if ($route['callable'] instanceof BaseController) {
+					require_once $route['callable']->getTemplate();
+				}
+
+				return false;
+			});
 		});
 	}
 
-	private function parseRedirect()
+	public function test()
 	{
-		return sprintf('index.php?%s', implode('&', array_map(function (int $key, string $value) {
-			return sprintf('%s=$matches[%d]', $value, $key);
-		}, array_keys($this->routeVariables), $this->routeVariables)));
+		return $this->routes;
 	}
 
-	private function addRewriteTags()
+	private function reset()
 	{
-		foreach ($this->rewriteTags as $tag => $regex) {
-			add_rewrite_tag($tag, $regex, $tag . '=');
-		}
+		$this->routeVariables = [];
+		$this->rewriteTags    = [];
+		$this->methods        = [];
 	}
 }
