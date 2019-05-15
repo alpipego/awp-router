@@ -17,6 +17,7 @@ class TemplateRouter implements TemplateRouterInterface
 			}
 			$this->resolveTemplate($query);
 			$this->resolveCondition($query);
+			$this->defaultController($query);
 		});
 	}
 
@@ -28,7 +29,7 @@ class TemplateRouter implements TemplateRouterInterface
 		];
 	}
 
-	public function template(string $type, string $name, array $postTypes, callable $callable)
+	public function template(string $type, string $name, array $postTypes, callable $callable = null)
 	{
 		add_action('init', function () use ($type, $name, $postTypes, $callable) {
 			array_walk($postTypes, function (string $postType) use (&$type, $name, $callable) {
@@ -64,11 +65,33 @@ class TemplateRouter implements TemplateRouterInterface
 		}
 
 		add_filter('template_include', function (string $template) use ($routeKey, $query) {
-			$this->templateRoutes[$routeKey]['callable']($query);
+			if (empty($template)) {
+				return false;
+			}
+			$callable = $this->templateRoutes[$routeKey]['callable'];
+			if (is_null($callable)) {
+				return $template;
+			}
+			$callable($query);
 			require_once $template;
 
 			return false;
 		});
+	}
+
+	private function defaultController(\WP_Query $query)
+	{
+		add_filter('template_include', function (string $template) use ($query) {
+			if (empty($template)) {
+				return false;
+			}
+			$template = apply_filters('awp/router/template/resolver', $template, $query);
+			if (is_bool($template) && ! $template) {
+				return false;
+			}
+
+			return $template;
+		}, 12);
 	}
 
 	private function parseTemplateFile(string $template) : string
@@ -85,11 +108,14 @@ class TemplateRouter implements TemplateRouterInterface
 		foreach (array_reverse($this->conditions) as $cond) {
 			if ($cond['condition']($query)) {
 				add_filter('template_include', function (string $template) use ($query, $cond) {
+					if (empty($template)) {
+						return false;
+					}
 					$cond['callable']($query);
 					require_once $template;
 
 					return false;
-				});
+				}, 11);
 			}
 
 			return;
