@@ -6,117 +6,96 @@ namespace Alpipego\AWP\Router;
 
 class Router implements RouterInterface
 {
-	private $routeVariables = [];
-	private $rewriteTags = [];
+	private $routes = [];
 
-	private function addRoute(string $route, callable $callable)
+	public function __construct()
 	{
-		$route    = sprintf('^%s/?$', trim($this->parseRoute($route), '/'));
-		$route    = (string)add_filter('awp/router/route', $route);
-		$redirect = $this->parseRedirect();
-		$route    = (string)add_filter('awp/router/redirect', $route);
+		$this->resolveRoute();
+	}
 
-		add_action('init', function () use ($route, $redirect) {
-			add_rewrite_rule($route, $redirect, 'top');
-			$this->addQueryArgs();
-			$this->addRewriteTags();
-			flush_rewrite_rules();
-		});
-
-		add_filter('pre_get_posts', function (\WP_Query $query) use ($callable) {
-			if ( ! $query->is_main_query()) {
-				return;
-			}
-			add_filter('template_include', function (string $template) use ($callable, $query) : string {
-				echo '<code><pre>';
-				var_dump($query, $template);
-				echo '</pre></code>';
-
-				return $template;
-			});
+	private function addRoute(array $methods, string $route, callable $callable)
+	{
+		add_action('init', function () use ($methods, $route, $callable) {
+			$key                = md5(implode('', $methods) . $route);
+			$this->routes[$key] = (new Route($key, $methods, $route, $callable))->add();
 		});
 	}
 
 	public function get(string $route, callable $callable)
 	{
-		$this->addRoute($route, $callable);
+		$this->addRoute(['GET', 'HEAD'], $route, $callable);
 	}
 
 	public function post(string $route, callable $callable)
 	{
-		// TODO: Implement post() method.
+		$this->addRoute(['post'], $route, $callable);
 	}
 
 	public function any(string $route, callable $callable)
 	{
-		// TODO: Implement any() method.
+		$this->addRoute(self::METHODS, $route, $callable);
 	}
-
-	private function parseRoute(string $route) : string
-	{
-		$count = 1;
-
-		return preg_replace_callback(
-			'/{(?<var>[a-zA-Z0-9_%]+)?:?(?<regex>.*?}?)}/',
-			function (array $matches) use (&$count) : string {
-				if (empty($matches['var']) && empty($matches['regex'])) {
-					return $matches[0];
-				}
-
-				$regex = sprintf('(%s)', $matches['regex']);
-				if (empty($matches['regex'])) {
-					$regex = '([^/]+)';
-				} elseif ($matches['regex'] === '?') {
-					$regex = '([^/]+)?';
-				}
-
-				if ($matches['var']) {
-					if (in_array($matches['var'], self::RESERVED) || in_array('%' . $matches['var'] . '%', self::RESERVED)) {
-						throw new RouterException(sprintf('Can\'t define "%s" as query var, since this is a reserved term in WordPress. See https://codex.wordpress.org/Reserved_Terms', $matches['var']));
-					}
-
-					if (strpos($matches['var'], '%') === 0 && strrpos($matches['var'], '%') === strlen($matches['var'])) {
-						$this->rewriteTags[$matches['var']] = $regex;
-					}
-
-					$this->routeVariables[$count++] = trim($matches['var'], '%');
-				}
-
-				return $regex;
-			},
-			$route
-		);
-	}
-
 
 	public function match(array $methods, string $route, callable $callable)
 	{
-		// TODO: Implement match() method.
+		$this->addRoute(array_intersect(self::METHODS, $methods), $route, $callable);
 	}
 
-	public function redirect(string $route, string $target, int $status = 308)
+	public function redirect(string $route, string $target, array $methods = ['GET', 'HEAD'], int $status = 308)
 	{
-		// TODO: Implement redirect() method.
-	}
+		$this->addRoute($methods, $route, function (\WP_Query $query) use ($target, $status) {
+			$target = preg_replace_callback('/{(?<var>[a-zA-Z0-9_]+)}/', function (array $matches) use ($query) {
+				if (array_key_exists($matches['var'], $query->query)) {
+					return $query->query[$matches['var']];
+				}
 
-	private function addQueryArgs()
-	{
-		add_filter('query_vars', function (array $vars) : array {
-			return array_merge($vars, $this->routeVariables);
+				return $matches[0];
+			}, $target);
+			wp_redirect($target, $status);
+			exit();
 		});
 	}
 
-	private function parseRedirect()
+	private function resolveRoute()
 	{
-		return sprintf('index.php?%s', implode('&', array_map(function (int $key, string $value) {
-			return sprintf('%s=$matches[%d]', $value, $key);
-		}, array_keys($this->routeVariables), $this->routeVariables)));
-	}
+		add_filter('parse_query', function (\WP_Query $query) {
+			if (
+				! $query->is_main_query()
+				|| is_admin() && ! (defined('DOING_AJAX') && DOING_AJAX)
+				|| ! array_key_exists('custom_key', $query->query)
+			) {
+				return;
+			}
+			$routeKey = array_search($query->query['custom_key'], array_column($this->routes, 'key', 'key'), true);
+			if (empty($routeKey)) {
+				return;
+			}
+			$route = $this->routes[$routeKey];
+			if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'HEAD' && ! in_array('HEAD', $route['methods'])) {
+				status_header(405, 'Method Not Allowed');
+				exit;
+			}
+			add_filter('template_include', function () use ($query, $route) {
+				if (!in_array($_SERVER['REQUEST_METHOD'], $route['methods'])) {
+					status_header(405, 'Method Not Allowed');
+					if ($template = get_4xx_template(405)) {
+						require_once $template;
+					}
+					exit;
+				}
+				$template = $route['callable']($query);
+				if ( ! is_null($template)) {
+					require_once $template;
 
-	private function addRewriteTags()
-	{
-		foreach ($this->rewriteTags as $tag => $regex) {
-			add_rewrite_tag($tag, $regex, $tag . '=');
-		}
+					return false;
+				}
+
+				if ($route['callable'] instanceof BaseController) {
+					require_once $route['callable']->getTemplate();
+				}
+
+				return false;
+			});
+		});
 	}
 }
