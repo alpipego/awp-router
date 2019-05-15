@@ -6,7 +6,6 @@ namespace Alpipego\AWP\Router;
 
 class Router implements RouterInterface
 {
-	private $methods = [];
 	private $routes = [];
 
 	public function __construct()
@@ -16,7 +15,10 @@ class Router implements RouterInterface
 
 	private function addRoute(array $methods, string $route, callable $callable)
 	{
-		$this->routes[md5(implode('', $methods) . $route)] = (new Route($methods, $route, $callable))->add();
+		add_action('init', function () use ($methods, $route, $callable) {
+			$key                = md5(implode('', $methods) . $route);
+			$this->routes[$key] = (new Route($key, $methods, $route, $callable))->add();
+		});
 	}
 
 	public function get(string $route, callable $callable)
@@ -39,20 +41,31 @@ class Router implements RouterInterface
 		$this->addRoute(array_intersect(self::METHODS, $methods), $route, $callable);
 	}
 
-	public function redirect(string $route, string $target, int $status = 308)
+	public function redirect(string $route, string $target, array $methods = ['get'], int $status = 308)
 	{
-		$this->methods = self::METHODS;
-		$route         = $this->parseRoute($route);
-		// TODO finish and test redirect
+		$this->addRoute($methods, $route, function (\WP_Query $query) use ($target, $status) {
+			$target = preg_replace_callback('/{(?<var>[a-zA-Z0-9_]+)}/', function (array $matches) use ($query) {
+				if (array_key_exists($matches['var'], $query->query)) {
+					return $query->query[$matches['var']];
+				}
+				return $matches[0];
+			}, $target);
+			wp_redirect($target, $status);
+			exit();
+		});
 	}
 
 	private function resolveRoute()
 	{
-		add_filter('pre_get_posts', function (\WP_Query $query) {
-			if ( ! $query->is_main_query() || is_admin() && ! (defined('DOING_AJAX') && DOING_AJAX)) {
+		add_filter('parse_query', function (\WP_Query $query) {
+			if (
+				! $query->is_main_query()
+				|| is_admin() && ! (defined('DOING_AJAX') && DOING_AJAX)
+				|| ! array_key_exists('custom_key', $query->query)
+			) {
 				return;
 			}
-			$routeKey = array_search(array_keys($query->query), array_combine(array_keys($this->routes), array_column($this->routes, 'vars')));
+			$routeKey = array_search($query->query['custom_key'], array_column($this->routes, 'key', 'key'), true);
 			if (empty($routeKey)) {
 				return;
 			}
@@ -72,17 +85,5 @@ class Router implements RouterInterface
 				return false;
 			});
 		});
-	}
-
-	public function test()
-	{
-		return $this->routes;
-	}
-
-	private function reset()
-	{
-		$this->routeVariables = [];
-		$this->rewriteTags    = [];
-		$this->methods        = [];
 	}
 }

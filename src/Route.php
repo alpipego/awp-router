@@ -13,22 +13,22 @@ class Route implements RouteInterface
 	private $methods;
 	private $route;
 	private $callable;
+	private $key;
 
-	public function __construct(array $methods, string $route, callable $callable)
+	public function __construct(string $key, array $methods, string $route, callable $callable)
 	{
-		$this->methods  = $methods;
-		$this->callable = $callable;
-		$this->route    = $this->parseRoute($route);
-		$this->route    = sprintf('^%s/?$', trim((string)apply_filters('awp/router/route', $this->route), '/'));
-		$this->route    = (string)apply_filters('awp/router/route_regex', $this->route);
-
-		add_action('init', function () {
-			$redirect = (string)apply_filters('awp/router/redirect', $this->parseRedirect());
-			add_rewrite_rule($this->route, $redirect, 'top');
-			$this->addQueryArgs();
-			$this->addRewriteTags();
-			//			$this->resolveRoute($callable);
-		});
+		$this->methods          = $methods;
+		$this->callable         = $callable;
+		$this->key              = $key;
+		$this->route            = $this->parseRoute((string)apply_filters('awp/router/route', $route));
+		$this->route            = sprintf('^%s/?$', trim($this->route, '/'));
+		$this->route            = (string)apply_filters('awp/router/route_regex', $this->route);
+		$redirect               = (string)apply_filters('awp/router/redirect', $this->parseRedirect());
+		$this->routeVariables[] = 'custom_key';
+		add_rewrite_rule($this->route, $redirect, 'top');
+		$this->addQueryVars();
+		$this->addRewriteTags();
+		flush_rewrite_rules();
 	}
 
 	private function parseRoute(string $route) : string
@@ -67,7 +67,7 @@ class Route implements RouteInterface
 		);
 	}
 
-	private function addQueryArgs()
+	private function addQueryVars()
 	{
 		add_filter('query_vars', function (array $vars) : array {
 			return array_merge($vars, $this->routeVariables);
@@ -76,9 +76,11 @@ class Route implements RouteInterface
 
 	private function parseRedirect()
 	{
-		return sprintf('index.php?%s', implode('&', array_map(function (int $key, string $value) {
+		$redirect = sprintf('index.php?%s', implode('&', array_map(function (int $key, string $value) {
 			return sprintf('%s=$matches[%d]', $value, $key);
 		}, array_keys($this->routeVariables), $this->routeVariables)));
+
+		return $redirect . '&custom_key=' . $this->key;
 	}
 
 	private function addRewriteTags()
@@ -92,6 +94,7 @@ class Route implements RouteInterface
 	{
 		return [
 			'route'    => $this->route,
+			'key'      => $this->key,
 			'vars'     => array_values($this->routeVariables),
 			'callable' => $this->callable,
 			'methods'  => $this->methods,
