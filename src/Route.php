@@ -17,7 +17,7 @@ class Route implements RouteInterface
 
 	public function __construct(string $key, array $methods, string $route, callable $callable)
 	{
-		$this->methods          = $methods;
+		$this->methods          = array_map('strtoupper', $methods);
 		$this->callable         = $callable;
 		$this->key              = $key;
 		$this->route            = $this->parseRoute((string)apply_filters('awp/router/route', $route));

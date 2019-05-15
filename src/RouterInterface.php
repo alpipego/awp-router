@@ -6,7 +6,7 @@ namespace Alpipego\AWP\Router;
 
 interface RouterInterface
 {
-	const METHODS = ['get', 'post'];
+	const METHODS = ['GET', 'POST', 'HEAD'];
 
 	public function get(string $route, callable $callable);
 

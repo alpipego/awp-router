@@ -21,6 +21,7 @@ interface RouteInterface
 		'comments_per_page',
 		'comments_popup',
 		'custom',
+		'custom_key',
 		'customize_messenger_channel',
 		'customized',
 		'cpage',

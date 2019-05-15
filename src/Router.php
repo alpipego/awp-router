@@ -23,7 +23,7 @@ class Router implements RouterInterface
 
 	public function get(string $route, callable $callable)
 	{
-		$this->addRoute(['get'], $route, $callable);
+		$this->addRoute(['GET', 'HEAD'], $route, $callable);
 	}
 
 	public function post(string $route, callable $callable)
@@ -41,13 +41,14 @@ class Router implements RouterInterface
 		$this->addRoute(array_intersect(self::METHODS, $methods), $route, $callable);
 	}
 
-	public function redirect(string $route, string $target, array $methods = ['get'], int $status = 308)
+	public function redirect(string $route, string $target, array $methods = ['GET', 'HEAD'], int $status = 308)
 	{
 		$this->addRoute($methods, $route, function (\WP_Query $query) use ($target, $status) {
 			$target = preg_replace_callback('/{(?<var>[a-zA-Z0-9_]+)}/', function (array $matches) use ($query) {
 				if (array_key_exists($matches['var'], $query->query)) {
 					return $query->query[$matches['var']];
 				}
+
 				return $matches[0];
 			}, $target);
 			wp_redirect($target, $status);
@@ -69,8 +70,19 @@ class Router implements RouterInterface
 			if (empty($routeKey)) {
 				return;
 			}
-			add_filter('template_include', function () use ($query, $routeKey) {
-				$route    = $this->routes[$routeKey];
+			$route = $this->routes[$routeKey];
+			if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'HEAD' && ! in_array('HEAD', $route['methods'])) {
+				status_header(405, 'Method Not Allowed');
+				exit;
+			}
+			add_filter('template_include', function () use ($query, $route) {
+				if (!in_array($_SERVER['REQUEST_METHOD'], $route['methods'])) {
+					status_header(405, 'Method Not Allowed');
+					if ($template = get_4xx_template(405)) {
+						require_once $template;
+					}
+					exit;
+				}
 				$template = $route['callable']($query);
 				if ( ! is_null($template)) {
 					require_once $template;

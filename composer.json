@@ -15,6 +15,9 @@
     "autoload": {
         "psr-4": {
             "Alpipego\\AWP\\Router\\": "src"
-        }
+        },
+        "files": [
+            "src/functions/get_4xx_template.php"
+        ]
     }
 }
