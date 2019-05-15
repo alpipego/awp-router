@@ -6,7 +6,7 @@ namespace Alpipego\AWP\Router;
 
 interface TemplateRouterInterface
 {
-	public function get(string $route, callable $callable);
+	public function condition(callable $condition, callable $callable);
 
 	public function template(string $type, string $name, array $postTypes, callable $callable);
 }
