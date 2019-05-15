@@ -75,8 +75,8 @@ class Router implements RouterInterface
 				status_header(405, 'Method Not Allowed');
 				exit;
 			}
-			add_filter('template_include', function () use ($query, $route) {
-				if (!in_array($_SERVER['REQUEST_METHOD'], $route['methods'])) {
+			add_filter('template_include', function (string $template) use ($query, $route) {
+				if ( ! in_array($_SERVER['REQUEST_METHOD'], $route['methods'])) {
 					status_header(405, 'Method Not Allowed');
 					if ($template = get_4xx_template(405)) {
 						require_once $template;
@@ -84,18 +84,18 @@ class Router implements RouterInterface
 					exit;
 				}
 				$template = $route['callable']($query);
-				if ( ! is_null($template)) {
+				if (is_bool($template) && ! $template) {
+					return false;
+				}
+
+				if (is_string($template)) {
 					require_once $template;
 
 					return false;
 				}
 
-				if ($route['callable'] instanceof BaseController) {
-					require_once $route['callable']->getTemplate();
-				}
-
 				return false;
-			});
+			}, 9);
 		});
 	}
 }
