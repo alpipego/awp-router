@@ -16,5 +16,5 @@ interface RouterInterface
 
 	public function match(array $methods, string $route, callable $callable);
 
-	public function redirect(string $route, string $target, int $status = 308);
+	public function redirect(string $route, string $target, array $methods = ['get'], int $status = 308);
 }
