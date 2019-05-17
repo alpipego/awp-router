@@ -1,6 +1,8 @@
 # Custom Routing for WordPress
 Inspired by [Themosis Routing](https://framework.themosis.com/docs/1.3/routing/) which in turns uses [Laravel's Routing](https://laravel.com/docs/5.8/routing) this WP Router abstraction adds support for adding custom routes and callbacks on WordPress' routes while using WordPress functions ([`add_rewrite_rule`](https://codex.wordpress.org/Rewrite_API/add_rewrite_rule), [`add_rewrite_tag`](https://codex.wordpress.org/Rewrite_API/add_rewrite_tag)) and without the need of adding third-party routers.
 
+Developed in collaboration with [@tatundkraft](https://github.com/tatundkraft).
+
 ## Custom Routes
 ```php
 <?php
