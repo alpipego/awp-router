@@ -8,6 +8,8 @@ interface RouterInterface
 {
 	const METHODS = ['GET', 'POST', 'HEAD'];
 
+	public function head(string $route, callable $callable);
+
 	public function get(string $route, callable $callable);
 
 	public function post(string $route, callable $callable);

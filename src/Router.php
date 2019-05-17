@@ -32,6 +32,11 @@ class Router implements RouterInterface
 		}, 11);
 	}
 
+	public function head(string $route, callable $callable)
+	{
+		$this->addRoute(['HEAD'], $route, $callable);
+	}
+
 	public function get(string $route, callable $callable)
 	{
 		$this->addRoute(['GET', 'HEAD'], $route, $callable);
