@@ -28,7 +28,6 @@ class Route implements RouteInterface
 		add_rewrite_rule($this->route, $redirect, 'top');
 		$this->addQueryVars();
 		$this->addRewriteTags();
-		flush_rewrite_rules();
 	}
 
 	private function parseRoute(string $route) : string
@@ -42,24 +41,31 @@ class Route implements RouteInterface
 					return $matches[0];
 				}
 
+				if (in_array($matches['var'], self::RESERVED)) {
+					throw new RouterException(sprintf('Can\'t define "%s" as query var, since this is a reserved term in WordPress. See https://codex.wordpress.org/Reserved_Terms', $matches['var']));
+				}
+
 				$regex = sprintf('(%s)', $matches['regex']);
 				if (empty($matches['regex'])) {
 					$regex = '([^/]+)';
-				} elseif ($matches['regex'] === '?') {
-					$regex = '([^/]+)?';
+					if ($this->isTag($matches['var'])) {
+						/** @var \WP_Rewrite $wpRewrite */
+						$wpRewrite = $GLOBALS['wp_rewrite'];
+						$pos       = array_search($matches['var'], $wpRewrite->rewritecode, true);
+						$regex     = $pos ? $wpRewrite->rewritereplace[$pos] : $regex;
+
+					}
 				}
 
-				if ($matches['var']) {
-					if (in_array($matches['var'], self::RESERVED) || in_array('%' . $matches['var'] . '%', self::RESERVED)) {
-						throw new RouterException(sprintf('Can\'t define "%s" as query var, since this is a reserved term in WordPress. See https://codex.wordpress.org/Reserved_Terms', $matches['var']));
-					}
-
-					if (strpos($matches['var'], '%') === 0 && strrpos($matches['var'], '%') === strlen($matches['var'])) {
-						$this->rewriteTags[$matches['var']] = $regex;
-					}
-
-					$this->routeVariables[$count++] = trim($matches['var'], '%');
+				if (empty($matches['var'])) {
+					return $regex;
 				}
+
+				if ($this->isTag($matches['var'])) {
+					$this->rewriteTags[$matches['var']] = $regex;
+				}
+
+				$this->routeVariables[$count++] = trim($matches['var'], '%');
 
 				return $regex;
 			},
@@ -70,7 +76,7 @@ class Route implements RouteInterface
 	private function addQueryVars()
 	{
 		add_filter('query_vars', function (array $vars) : array {
-			return array_merge($vars, $this->routeVariables);
+			return array_unique(array_merge($vars, $this->routeVariables));
 		});
 	}
 
@@ -99,5 +105,10 @@ class Route implements RouteInterface
 			'callable' => $this->callable,
 			'methods'  => $this->methods,
 		];
+	}
+
+	private function isTag(string $var) : bool
+	{
+		return strpos($var, '%') === 0 && strrpos($var, '%') === strlen($var);
 	}
 }

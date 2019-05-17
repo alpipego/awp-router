@@ -8,5 +8,5 @@ interface TemplateRouterInterface
 {
 	public function condition(callable $condition, callable $callable);
 
-	public function template(string $type, string $name, array $postTypes, callable $callable);
+	public function template(string $template, string $name, array $postTypes, callable $callable);
 }

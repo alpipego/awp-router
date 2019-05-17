@@ -7,10 +7,18 @@ namespace Alpipego\AWP\Router;
 class Router implements RouterInterface
 {
 	private $routes = [];
+	private $routeCache = [];
+	private const CACHE_KEY = 'awp_router_custom';
 
 	public function __construct()
 	{
 		$this->resolveRoute();
+		add_action('init', function () {
+			if (get_transient(self::CACHE_KEY) !== $this->routeCache) {
+				set_transient(self::CACHE_KEY, $this->routeCache);
+				flush_rewrite_rules();
+			}
+		}, 12);
 	}
 
 	private function addRoute(array $methods, string $route, callable $callable)
@@ -18,7 +26,15 @@ class Router implements RouterInterface
 		add_action('init', function () use ($methods, $route, $callable) {
 			$key                = md5(implode('', $methods) . $route);
 			$this->routes[$key] = (new Route($key, $methods, $route, $callable))->add();
-		});
+			if ( ! in_array($key, $this->routeCache)) {
+				$this->routeCache[] = $key;
+			}
+		}, 11);
+	}
+
+	public function head(string $route, callable $callable)
+	{
+		$this->addRoute(['HEAD'], $route, $callable);
 	}
 
 	public function get(string $route, callable $callable)
@@ -83,18 +99,19 @@ class Router implements RouterInterface
 					}
 					exit;
 				}
-				$template = $route['callable']($query);
-				if (is_bool($template) && ! $template) {
+
+				$newTemplate = $route['callable']($query);
+				if (is_bool($newTemplate) && ! $newTemplate) {
 					return false;
 				}
 
-				if (is_string($template)) {
-					require_once $template;
+				if (is_string($newTemplate)) {
+					require_once $newTemplate;
 
 					return false;
 				}
 
-				return false;
+				return $template;
 			}, 9);
 		});
 	}

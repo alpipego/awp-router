@@ -29,9 +29,9 @@ class TemplateRouter implements TemplateRouterInterface
 		];
 	}
 
-	public function template(string $type, string $name, array $postTypes, callable $callable = null)
+	public function template(string $template, string $name, array $postTypes, callable $callable)
 	{
-		add_action('init', function () use ($type, $name, $postTypes, $callable) {
+		add_action('init', function () use ($template, $name, $postTypes, $callable) {
 			array_walk($postTypes, function (string $postType) use (&$type, $name, $callable) {
 				if ( ! post_type_exists($postType)) {
 					return;
@@ -43,8 +43,8 @@ class TemplateRouter implements TemplateRouterInterface
 				});
 			});
 
-			$this->templateRoutes[md5($type . implode('', $postTypes))] = [
-				'template'  => $type,
+			$this->templateRoutes[md5($template . implode('', $postTypes))] = [
+				'template'  => $template,
 				'callable'  => $callable,
 				'postTypes' => $postTypes,
 			];
@@ -68,14 +68,18 @@ class TemplateRouter implements TemplateRouterInterface
 			if (empty($template)) {
 				return false;
 			}
-			$callable = $this->templateRoutes[$routeKey]['callable'];
-			if (is_null($callable)) {
-				return $template;
+			$newTemplate = $this->templateRoutes[$routeKey]['callable']($query);
+			if (is_bool($newTemplate) && ! $newTemplate) {
+				return false;
 			}
-			$callable($query);
-			require_once $template;
 
-			return false;
+			if (is_string($newTemplate)) {
+				require_once $newTemplate;
+
+				return false;
+			}
+
+			return $template;
 		});
 	}
 
