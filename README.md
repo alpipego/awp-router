@@ -3,13 +3,24 @@ Inspired by [Themosis Routing](https://framework.themosis.com/docs/1.3/routing/)
 
 Developed in collaboration with [@tatundkraft](https://github.com/tatundkraft).
 
+## Installation
+Install this package via [composer](https://getcomposer.org):
+
+```bash
+php composer.phar require alpipego/awp-router
+```
+
+Initialise the dispatcher:
+
+```php
+$dispatcher= new \Alpipego\AWP\Router\Dispatcher();
+```
+
+The dispatcher takes a `CustomRouterInterface` and a `TemplateRouterInterface` as optional arguments, if none are provided, the default Routers are initialised. 
+
 ## Custom Routes
 ```php
-<?php
-
-$router = new \Alpipego\AWP\Router\Router();
-
-$router->get('/my-custom-route', function(WP_Query $query) {
+$dispatcher->custom->get('/my-custom-route', function(WP_Query $query) {
     // do something with your query
 });
 ``` 
@@ -27,9 +38,8 @@ At the moment the methods `GET`, `POST`, and `HEAD` are implemented; custom rout
 
 and `match` which takes possible methods as a first parameter:
 ```php
-<?php
 // match(array $methods, string $route, callable $callable)
-$router->match(['GET', 'POST'], '/true-get', function(WP_Query $query) {
+$dispatcher->custom->match(['GET', 'POST'], '/true-get', function(WP_Query $query) {
     // ...
 });
 ```
@@ -42,8 +52,7 @@ Variables are added in the following form `{VARNAME:REGEX}` and you can leave ou
 In the following example `form_id` and `input_name` are passed back as `query_vars` in the `$query` object. The last regex simply matches any three characters, e.g. `abc` but not `abcd` (and does not add a query var): 
 
 ```php
-<?php
-$router->post('/forms/{form_id:\d+}/input/{input_name}/{[a-z]{3}}', function(WP_Query $query) {
+$dispatcher->custom->post('/forms/{form_id:\d+}/input/{input_name}/{[a-z]{3}}', function(WP_Query $query) {
     // ...
 });
 ```
@@ -55,8 +64,7 @@ $router->post('/forms/{form_id:\d+}/input/{input_name}/{[a-z]{3}}', function(WP_
 Already registered query vars (either [built-in public vars](https://codex.wordpress.org/WordPress_Query_Vars#List_of_Query_Vars) or registered through plugins et al.) can be used in the route, and are registered with leading and trailing `%`, i.e. `{%QUERYVAR%:REGEX}`:
 
 ```php
-<?php
-$router->post('/pages/{%page_id%}/fields/{%field_id%:\d+}', function(WP_Query $query) {
+$dispatcher->custom->post('/pages/{%page_id%}/fields/{%field_id%:\d+}', function(WP_Query $query) {
     // ...
 });
 ```
@@ -71,9 +79,8 @@ This will match the built-in `page_id` query var and add a custom `field_id` que
 The `RouterInterface` has a method to add redirects:
 
 ```php
-<?php
 // redirect(string $route, string $target, array $methods = ['GET', 'HEAD'], int $status = 308)
-$router->redirect('/twitter/{twitter_user}', 'https://twitter.com/{twitter_user}');
+$dispatcher->custom->redirect('/twitter/{twitter_user}', 'https://twitter.com/{twitter_user}');
 ```
 
 This route will redirect `https://YOURSITE.com/twitter/alpipego` to https://twitter.com/alpipego
@@ -81,9 +88,7 @@ This route will redirect `https://YOURSITE.com/twitter/alpipego` to https://twit
 Of course, redirects can also have regular expressions and rewrite tags in the route.
 
 ```php
-<?php
-// redirect(string $route, string $target, array $methods = ['GET'. 'HEAD'], int $status = 308)
-$router->redirect('/attachment/{%attachment_id%}', 'https://external-attachment-handler.com/{attachment_id}');
+$dispatcher->custom->redirect('/attachment/{%attachment_id%}', 'https://external-attachment-handler.com/{attachment_id}');
 ```
 
 *Notes*:
@@ -104,12 +109,8 @@ The callback will receive the current `WP_Query` object as the first parameter, 
 The `condition` method takes a callable that returns a boolean value as its first argument and a callback to be executed right before rendering the template if the condition is true as its second argument. Both callbacks receive the current `WP_Query` to act on.
 
 ```php
-<?php
-
-$router = new \Alpipego\AWP\Router\TemplateRouter();
-
 // public function condition(callable $condition, callable $callable);
-$router->condition(function(WP_Query $query) {
+$dispatcher->template->condition(function(WP_Query $query) {
     //    if this  is true
     return $query->is_page;
 }, function(WP_Query $query) {
@@ -119,11 +120,10 @@ $router->condition(function(WP_Query $query) {
 
 ### Post Type Templates
 Register [post type templates](https://developer.wordpress.org/themes/template-files-section/page-template-files/) without the constraints the WordPress implementation has. The `template` method takes a template file path as the first argument&mdash;relative to the current (child) theme, the template name (for the wp-admin sidebar select box) as the second, the post types for which this template should be available as the third and a callback as the final argument. See the [section on callbacks](#callbacks) on how they are handled.
+
 ```php
-<?php
 // public function template(string $template, string $name, array $postTypes, callable $callable);
-/** $var TemplateRouter $router */
-$router->template('my-page-template.php', __('Page Template Name', 'textdomain'), ['page', 'post'], function(WP_Query $query) {
+$dispatcher->template->template('my-page-template.php', __('Page Template Name', 'textdomain'), ['page', 'post'], function(WP_Query $query) {
     // ...
 });  
 ```
