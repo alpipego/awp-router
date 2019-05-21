@@ -12,21 +12,30 @@ use Alpipego\AWP\Router\Exception\RouterException;
  *
  * @property CustomRouterInterface $custom
  * @property TemplateRouterInterface $template
+ * @property AjaxRouterInterface $ajax
  */
 class Dispatcher
 {
 	private $_custom;
+	private $_ajax;
 	private $_template;
 
-	public function __construct(CustomRouterInterface $custom = null, TemplateRouterInterface $template = null)
+	public function __construct(CustomRouterInterface $custom = null, TemplateRouterInterface $template = null, AjaxRouterInterface $ajax = null)
 	{
 		$this->_custom   = $custom ?? new CustomRouter();
 		$this->_template = $template ?? new TemplateRouter();
+		$this->_ajax     = $ajax ?? new AjaxRouter();
+		$this->_ajax->setCustomRouter($this->_custom);
 	}
 
 	public function setCustomRouter(CustomRouterInterface $custom)
 	{
 		return $this->_custom = $custom;
+	}
+
+	public function setAjaxRouter(AjaxRouterInterface $ajax)
+	{
+		return $this->_ajax = $ajax;
 	}
 
 	public function setTemplateRouter(TemplateRouterInterface $template)
