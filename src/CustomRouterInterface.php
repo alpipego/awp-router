@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Alpipego\AWP\Router;
 
-interface RouterInterface
+interface CustomRouterInterface
 {
 	const METHODS = ['GET', 'POST', 'HEAD'];
 

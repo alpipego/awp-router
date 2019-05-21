@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Alpipego\AWP\Router;
 
-class Router implements RouterInterface
+class CustomRouter implements CustomRouterInterface
 {
 	private $routes = [];
 	private $routeCache = [];
@@ -74,7 +74,7 @@ class Router implements RouterInterface
 
 	private function resolveRoute()
 	{
-		add_filter('parse_query', function (\WP_Query $query) {
+		add_action('parse_query', function (\WP_Query $query) {
 			if (
 				! $query->is_main_query()
 				|| is_admin() && ! (defined('DOING_AJAX') && DOING_AJAX)
@@ -100,7 +100,7 @@ class Router implements RouterInterface
 					exit;
 				}
 
-				$newTemplate = $route['callable']($query);
+				$newTemplate = do_action('awp/router/custom/pre_template', $route['callable'], $query);
 				if (is_bool($newTemplate) && ! $newTemplate) {
 					return false;
 				}
