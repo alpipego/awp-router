@@ -100,10 +100,11 @@ class CustomRouter implements CustomRouterInterface
 					exit;
 				}
 
-				$newTemplate = do_action('awp/router/custom/pre_template', $route['callable'], $query);
+				$newTemplate = $route['callable']($query);
 				if (is_bool($newTemplate) && ! $newTemplate) {
 					return false;
 				}
+				$newTemplate = apply_filters('awp/router/custom/resolver', $newTemplate, $query);
 
 				if (is_string($newTemplate)) {
 					require_once $newTemplate;
