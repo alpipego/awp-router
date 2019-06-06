@@ -74,15 +74,14 @@ class CustomRouter implements CustomRouterInterface
 
 	private function resolveRoute()
 	{
-		add_action('parse_query', function (\WP_Query $query) {
+		add_action('parse_request', function (\WP $wp) {
 			if (
-				! $query->is_main_query()
-				|| is_admin() && ! (defined('DOING_AJAX') && DOING_AJAX)
-				|| ! array_key_exists('custom_key', $query->query)
+				is_admin() && ! (defined('DOING_AJAX') && DOING_AJAX)
+				|| ! array_key_exists('custom_key', $wp->query_vars)
 			) {
 				return;
 			}
-			$routeKey = array_search($query->query['custom_key'], array_column($this->routes, 'key', 'key'), true);
+			$routeKey = array_search($wp->query_vars['custom_key'], array_column($this->routes, 'key', 'key'), true);
 			if (empty($routeKey)) {
 				return;
 			}
@@ -91,29 +90,36 @@ class CustomRouter implements CustomRouterInterface
 				status_header(405, 'Method Not Allowed');
 				exit;
 			}
-			add_filter('template_include', function (string $template) use ($query, $route) {
-				if ( ! in_array($_SERVER['REQUEST_METHOD'], $route['methods'])) {
-					status_header(405, 'Method Not Allowed');
-					if ($template = get_4xx_template(405)) {
-						require_once $template;
+
+			do_action('awp/router/custom/pre_template', $route['callable'], $wp, $routeKey);
+
+			$wp->remove_query_var('custom_key');
+
+			add_action('parse_query', function (\WP_Query $query) use ($route) {
+				add_filter('template_include', function (string $template) use ($query, $route) {
+					if ( ! in_array($_SERVER['REQUEST_METHOD'], $route['methods'])) {
+						status_header(405, 'Method Not Allowed');
+						if ($template = get_4xx_template(405)) {
+							require_once $template;
+						}
+						exit;
 					}
-					exit;
-				}
 
-				$newTemplate = $route['callable']($query);
-				if (is_bool($newTemplate) && ! $newTemplate) {
-					return false;
-				}
-				$newTemplate = apply_filters('awp/router/custom/resolver', $newTemplate, $query);
+					$newTemplate = $route['callable']($query);
+					if (is_bool($newTemplate) && ! $newTemplate) {
+						return false;
+					}
+					$newTemplate = apply_filters('awp/router/custom/resolver', $newTemplate, $query);
 
-				if (is_string($newTemplate)) {
-					require_once $newTemplate;
+					if (is_string($newTemplate)) {
+						require_once $newTemplate;
 
-					return false;
-				}
+						return false;
+					}
 
-				return $template;
-			}, 9);
-		});
+					return $template;
+				}, 9);
+			});
+		}, 1);
 	}
 }
