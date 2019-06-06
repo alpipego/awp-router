@@ -57,10 +57,15 @@ class AjaxRouter implements AjaxRouterInterface
 		$this->router->match($methods, $route, $callable);
 	}
 
-	public function resolveRoute(callable $callback, \WP $wp, string $routeKey)
+	public function resolveRoute(array $route, \WP $wp)
 	{
-		if (in_array($routeKey, $this->routes)) {
-			$_REQUEST['action'] = $routeKey;
+		if (in_array($route['key'], $this->routes)) {
+			if ( ! in_array($_SERVER['REQUEST_METHOD'], $route['methods'])) {
+				define( 'DOING_AJAX', true );
+				wp_die('Method Not Allowed', 405);
+			}
+
+			$_REQUEST['action'] = $route['key'];
 			$_REQUEST['query']  = $wp->query_vars;
 			require_once ABSPATH . 'wp-admin/admin-ajax.php';
 		}

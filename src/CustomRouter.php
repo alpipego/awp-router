@@ -86,17 +86,18 @@ class CustomRouter implements CustomRouterInterface
 				return;
 			}
 			$route = $this->routes[$routeKey];
+			$wp->remove_query_var('custom_key');
 			if (isset($_SERVER['REQUEST_METHOD']) && $_SERVER['REQUEST_METHOD'] === 'HEAD' && ! in_array('HEAD', $route['methods'])) {
 				status_header(405, 'Method Not Allowed');
 				exit;
 			}
 
-			do_action('awp/router/custom/pre_template', $route['callable'], $wp, $routeKey);
+			do_action('awp/router/custom/pre_template', $route, $wp);
 
-			$wp->remove_query_var('custom_key');
 
 			add_action('parse_query', function (\WP_Query $query) use ($route) {
 				add_filter('template_include', function (string $template) use ($query, $route) {
+
 					if ( ! in_array($_SERVER['REQUEST_METHOD'], $route['methods'])) {
 						status_header(405, 'Method Not Allowed');
 						if ($template = get_4xx_template(405)) {
