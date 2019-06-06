@@ -24,8 +24,7 @@ class Dispatcher
 	{
 		$this->_custom   = $custom ?? new CustomRouter();
 		$this->_template = $template ?? new TemplateRouter();
-		$this->_ajax     = $ajax ?? new AjaxRouter();
-		$this->_ajax->setCustomRouter($this->_custom);
+		$this->_ajax     = $ajax ?? new AjaxRouter($this->_custom);
 	}
 
 	public function setCustomRouter(CustomRouterInterface $custom)
