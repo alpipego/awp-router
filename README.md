@@ -16,7 +16,7 @@ Initialise the dispatcher:
 $dispatcher= new \Alpipego\AWP\Router\Dispatcher();
 ```
 
-The dispatcher takes a `CustomRouterInterface` and a `TemplateRouterInterface` as optional arguments, if none are provided, the default Routers are initialised. 
+The dispatcher takes a `CustomRouterInterface`, a `TemplateRouterInterface`, and a `AjaxRouterInterface` as optional arguments, if none are provided, the default Routers are initialised. 
 
 ## Custom Routes
 ```php
@@ -127,3 +127,23 @@ $dispatcher->template->template('my-page-template.php', __('Page Template Name',
     // ...
 });  
 ```
+
+## Ajax Routing
+AJAX requests can be either `GET` or `POST` requests (or both), and apply to logged-in users only or all users.
+You can define custom routes for AJAX requests in the following format:
+
+```php
+// public function get(string $route, callable $callback, bool $private = false);
+$dispatcher->ajax->get('/ajax/user/{user_id:\d+}', function () {
+    $userId = (int)$_GET['query']['user_id'];
+    $user = new WP_User($userId);
+    if ($user->ID === 0) {
+        wp_send_json_error(sprintf('User #%d does not exist', $userId));
+    }
+    wp_send_json_success($user);
+}, true);
+```
+
+*Notes*:
+* Compared to the other routers, the callback does not receive a `WP_Query` object; the query vars are included in the `$_REQUEST` super global
+* In contrast to WordPress' AJAX actions, requests that are not marked as private apply to both logged-in and not logged-in users (`priv` vs. `nopriv`).
