@@ -32,19 +32,19 @@ class TemplateRouter implements TemplateRouterInterface
 	public function template(string $template, string $name, array $postTypes, callable $callable)
 	{
 		add_action('init', function () use ($template, $name, $postTypes, $callable) {
-			array_walk($postTypes, function (string $postType) use (&$type, $name, $callable) {
+			array_walk($postTypes, function (string $postType) use ($template, $name, $callable) {
 				if ( ! post_type_exists($postType)) {
 					return;
 				}
-				add_filter("theme_{$postType}_templates", function (array $templates) use (&$type, $name) {
-					$templates[$this->parseTemplateFile($type)] = $name;
+				add_filter("theme_{$postType}_templates", function (array $templates) use ($template, $name) {
+					$templates[$this->parseTemplateFile($template)] = $name;
 
 					return $templates;
 				});
 			});
 
 			$this->templateRoutes[md5($template . implode('', $postTypes))] = [
-				'template'  => $this->parseTemplateFile($type),
+				'template'  => $this->parseTemplateFile($template),
 				'callable'  => $callable,
 				'postTypes' => $postTypes,
 			];
