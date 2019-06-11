@@ -44,7 +44,7 @@ class TemplateRouter implements TemplateRouterInterface
 			});
 
 			$this->templateRoutes[md5($template . implode('', $postTypes))] = [
-				'template'  => $template,
+				'template'  => $this->parseTemplateFile($type),
 				'callable'  => $callable,
 				'postTypes' => $postTypes,
 			];
@@ -53,12 +53,10 @@ class TemplateRouter implements TemplateRouterInterface
 
 	private function resolveTemplate(\WP_Query $query)
 	{
-		$templates = array_combine(array_keys($this->templateRoutes), array_column($this->templateRoutes, 'template'));
-		if ( ! is_page_template($templates)) {
-			return;
-		}
-
-		$routeKey = array_search(get_post_meta($query->queried_object_id, '_wp_page_template', true), $templates, true);
+		$routeKey = array_search(
+			get_post_meta($query->queried_object_id, '_wp_page_template', true),
+			array_combine(array_keys($this->templateRoutes), array_column($this->templateRoutes, 'template')), true
+		);
 
 		if (empty($routeKey)) {
 			return;
