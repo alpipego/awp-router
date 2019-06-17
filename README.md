@@ -106,24 +106,26 @@ The callback will receive the current `WP_Query` object as the first parameter, 
 ## Template Routing
 
 ### Conditionals
-The `condition` method takes a callable that returns a boolean value as its first argument and a callback to be executed right before rendering the template if the condition is true as its second argument. Both callbacks receive the current `WP_Query` to act on.
+The `condition` method takes a callable that returns a boolean value as its first argument and a callback to be executed right before rendering the template if the condition is true as its second argument. Both callbacks receive the current `WP_Query` to act on, the callable also receives the full path to the template file. See the [section on callbacks](#callbacks) on how they are handled.
 
 ```php
 // public function condition(callable $condition, callable $callable);
 $dispatcher->template->condition(function(WP_Query $query) {
     //    if this  is true
     return $query->is_page;
-}, function(WP_Query $query) {
+}, function(WP_Query $query, string $template) {
     // then execute this
+    
+    return $template;
 });  
 ```
 
 ### Post Type Templates
-Register [post type templates](https://developer.wordpress.org/themes/template-files-section/page-template-files/) without the constraints the WordPress implementation has. The `template` method takes a template file path as the first argument&mdash;relative to the current (child) theme, the template name (for the wp-admin sidebar select box) as the second, the post types for which this template should be available as the third and a callback as the final argument. See the [section on callbacks](#callbacks) on how they are handled.
+Register [post type templates](https://developer.wordpress.org/themes/template-files-section/page-template-files/) without the constraints the WordPress implementation has. The `template` method takes a template file path as the first argument&mdash;relative to the current (child) theme, the template name (for the wp-admin sidebar select box) as the second, the post types for which this template should be available as the third and a callback as the final argument. See the [section on callbacks](#callbacks) on how they are handled. In addition to the current `WP_Query` object, the callback function receives the full path to the template as the second argument:
 
 ```php
 // public function template(string $template, string $name, array $postTypes, callable $callable);
-$dispatcher->template->template('my-page-template.php', __('Page Template Name', 'textdomain'), ['page', 'post'], function(WP_Query $query) {
+$dispatcher->template->template('my-page-template.php', __('Page Template Name', 'textdomain'), ['page', 'post'], function(WP_Query $query, string $template) {
     // ...
 });  
 ```
