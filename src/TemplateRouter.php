@@ -68,7 +68,8 @@ class TemplateRouter implements TemplateRouterInterface
 			if (empty($template)) {
 				return false;
 			}
-			$newTemplate = $this->templateRoutes[$routeKey]['callable']($query);
+
+			$newTemplate = $this->templateRoutes[$routeKey]['callable']($query, $template);
 			if (is_bool($newTemplate) && ! $newTemplate) {
 				return false;
 			}
@@ -115,7 +116,16 @@ class TemplateRouter implements TemplateRouterInterface
 					if (empty($template)) {
 						return false;
 					}
-					$cond['callable']($query);
+					$newTemplate = $cond['callable']($query, $template);
+					if (is_bool($newTemplate) && ! $newTemplate) {
+						return false;
+					}
+
+					if (is_string($newTemplate)) {
+						require_once $newTemplate;
+
+						return false;
+					}
 
 					return $template;
 				}, 11);
