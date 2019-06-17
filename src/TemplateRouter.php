@@ -16,10 +16,10 @@ class TemplateRouter implements TemplateRouterInterface
 				return;
 			}
 			$this->resolveTemplate($query);
+			$this->defaultController($query);
 			add_action('wp', function () use ($query) {
 				$this->resolveCondition($query);
 			});
-			$this->defaultController($query);
 		});
 	}
 
@@ -116,9 +116,8 @@ class TemplateRouter implements TemplateRouterInterface
 						return false;
 					}
 					$cond['callable']($query);
-					require_once $template;
 
-					return false;
+					return $template;
 				}, 11);
 			}
 
