@@ -16,7 +16,9 @@ class TemplateRouter implements TemplateRouterInterface
 				return;
 			}
 			$this->resolveTemplate($query);
-			$this->resolveCondition($query);
+			add_action('wp', function () use ($query) {
+				$this->resolveCondition($query);
+			});
 			$this->defaultController($query);
 		});
 	}
