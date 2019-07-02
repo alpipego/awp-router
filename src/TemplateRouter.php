@@ -111,27 +111,27 @@ class TemplateRouter implements TemplateRouterInterface
 	private function resolveCondition(\WP_Query $query)
 	{
 		foreach (array_reverse($this->conditions) as $cond) {
-			if ($cond['condition']($query)) {
-				add_filter('template_include', function (string $template) use ($query, $cond) {
-					if (empty($template)) {
-						return false;
-					}
-					$newTemplate = $cond['callable']($query, $template);
-					if (is_bool($newTemplate) && ! $newTemplate) {
-						return false;
-					}
-
-					if (is_string($newTemplate)) {
-						require_once $newTemplate;
-
-						return false;
-					}
-
-					return $template;
-				}, 11);
+			if ( ! $cond['condition']($query)) {
+				continue;
 			}
 
-			return;
+			add_filter('template_include', function (string $template) use ($query, $cond) {
+				if (empty($template)) {
+					return false;
+				}
+				$newTemplate = $cond['callable']($query, $template);
+				if (is_bool($newTemplate) && ! $newTemplate) {
+					return false;
+				}
+
+				if (is_string($newTemplate)) {
+					require_once $newTemplate;
+
+					return false;
+				}
+
+				return $template;
+			}, 11);
 		}
 	}
 }
