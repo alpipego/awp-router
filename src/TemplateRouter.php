@@ -33,7 +33,7 @@ class TemplateRouter implements TemplateRouterInterface
 
 	public function template(string $template, string $name, array $postTypes, callable $callable)
 	{
-		add_action('init', function () use ($template, $name, $postTypes, $callable) {
+		$registerTemplate = function () use ($template, $name, $postTypes, $callable) {
 			array_walk($postTypes, function (string $postType) use ($template, $name, $callable) {
 				if ( ! post_type_exists($postType)) {
 					return;
@@ -50,13 +50,22 @@ class TemplateRouter implements TemplateRouterInterface
 				'callable'  => $callable,
 				'postTypes' => $postTypes,
 			];
-		});
+		};
+
+		if (did_action('init')) {
+			$registerTemplate();
+			return;
+		}
+
+		add_action('init', $registerTemplate);
 	}
 
 	private function resolveTemplate(\WP_Query $query)
 	{
 		$routeKey = array_search(
-			get_post_meta($query->queried_object_id, '_wp_page_template', true),
+			get_post_meta($query->is_preview && is_null($query->queried_object_id)
+				? $query->query['p']
+				: $query->queried_object_id, '_wp_page_template', true),
 			array_combine(array_keys($this->templateRoutes), array_column($this->templateRoutes, 'template')), true
 		);
 
