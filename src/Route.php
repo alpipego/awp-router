@@ -57,6 +57,7 @@ class Route implements RouteInterface
 					}
 				}
 
+
 				if (empty($matches['var'])) {
 					return $regex;
 				}
@@ -65,7 +66,10 @@ class Route implements RouteInterface
 					$this->rewriteTags[$matches['var']] = $regex;
 				}
 
-				$this->routeVariables[$count++] = trim($matches['var'], '%');
+				$variable = trim($matches['var'], '%');
+				if (array_search($variable, $this->routeVariables) === false) {
+				    $this->routeVariables[$count++] = $variable;
+                }
 
 				return $regex;
 			},
