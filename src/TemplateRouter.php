@@ -64,7 +64,7 @@ class TemplateRouter implements TemplateRouterInterface
 	{
 		$routeKey = array_search(
 			get_post_meta($query->is_preview && is_null($query->queried_object_id)
-				? $query->query['p']
+				? ($query->query['p'] ?? $query->query['page_id'])
 				: $query->queried_object_id, '_wp_page_template', true),
 			array_combine(array_keys($this->templateRoutes), array_column($this->templateRoutes, 'template')), true
 		);
