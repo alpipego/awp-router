@@ -96,8 +96,10 @@ class CustomRouter implements CustomRouterInterface
 
 
 			add_action('parse_query', function (\WP_Query $query) use ($route) {
+				if ( ! $query->is_main_query()) {
+					return;
+				}
 				add_filter('template_include', function (string $template) use ($query, $route) {
-
 					if ( ! in_array($_SERVER['REQUEST_METHOD'], $route['methods'])) {
 						status_header(405, 'Method Not Allowed');
 						if ($template = get_4xx_template(405)) {
