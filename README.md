@@ -13,7 +13,7 @@ php composer.phar require alpipego/awp-router
 Initialise the dispatcher:
 
 ```php
-$dispatcher= new \Alpipego\AWP\Router\Dispatcher();
+$dispatcher = new \Alpipego\AWP\Router\Dispatcher();
 ```
 
 The dispatcher takes a `CustomRouterInterface`, a `TemplateRouterInterface`, and a `AjaxRouterInterface` as optional arguments, if none are provided, the default Routers are initialised. 
